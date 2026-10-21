@@ -1,0 +1,17 @@
+
+# Build output
+Debug/
+Release/
+
+# Compiled object and dependency files
+*.o
+*.d
+*.elf
+*.hex
+*.bin
+*.map
+*.list
+
+# IDE-generated workspace settings
+.settings/
+STM32CubeIDE_FreeRTOS_SensorInterface Debug.launch

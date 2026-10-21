@@ -234,7 +234,9 @@ void StartDefaultTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+    //osDelay(1); commented the default one to add delay for LED task
+    HAL_GPIO_TogglePin(LED_LD2_GPIO_Port, LED_LD2_Pin);   // toggle the PA5 LED
+	osDelay(500);                                         // Delay of 50ms for toggling the LED
   }
   /* USER CODE END 5 */
 }
