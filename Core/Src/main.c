@@ -55,7 +55,16 @@ const osThreadAttr_t SensorTask_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
+/* Definitions for DataProcessingT */
+osThreadId_t DataProcessingTHandle;
+const osThreadAttr_t DataProcessingT_attributes = {
+  .name = "DataProcessingT",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
 /* USER CODE BEGIN PV */
+osMessageQueueId_t sensorQueue;
+volatile uint32_t receivedCount = 0;
 
 /* USER CODE END PV */
 
@@ -64,6 +73,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 void StartLEDTask(void *argument);
 void StartSensorTask(void *argument);
+void StartDataProcessingTask(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -105,6 +115,15 @@ int main(void)
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
 
+
+  sensorQueue = osMessageQueueNew(8, sizeof(uint32_t), NULL);
+
+  if (sensorQueue == NULL)
+  {
+      Error_Handler();
+  }
+
+
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -132,6 +151,9 @@ int main(void)
 
   /* creation of SensorTask */
   SensorTaskHandle = osThreadNew(StartSensorTask, NULL, &SensorTask_attributes);
+
+  /* creation of DataProcessingT */
+  DataProcessingTHandle = osThreadNew(StartDataProcessingTask, NULL, &DataProcessingT_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -262,12 +284,68 @@ void StartLEDTask(void *argument)
 void StartSensorTask(void *argument)
 {
   /* USER CODE BEGIN StartSensorTask */
+
   /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
+  //for(;;)
+  //{
+    //osDelay(1);
+  //}
+
+	/* Generate simulated sensor readings (28–35) until real sensor hardware is integrated. */
+	uint32_t sensorValue = 28;
+
+	for (;;)
+	{
+		/* Send the current simulated reading to the sensor queue. */
+		osMessageQueuePut(sensorQueue, &sensorValue, 0, 0);
+
+
+		/* Increment the reading to simulate changing sensor data. */
+		sensorValue++;
+
+		/* Reset the reading to 28 after reaching 35. */
+		if (sensorValue > 35)
+		{
+			sensorValue = 28;
+		}
+
+		/* Wait 1 second before generating the next reading. */
+		osDelay(1000);
+	}
   /* USER CODE END StartSensorTask */
+}
+
+/* USER CODE BEGIN Header_StartDataProcessingTask */
+/**
+* @brief Function implementing the DataProcessingT thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartDataProcessingTask */
+void StartDataProcessingTask(void *argument)
+{
+  /* USER CODE BEGIN StartDataProcessingTask */
+
+  /* Infinite loop */
+  //for(;;)
+  //{
+  //  osDelay(1);
+  //}
+
+	uint32_t receivedValue = 0;
+
+	for (;;)
+	{
+		/* Wait indefinitely until a sensor reading is available in the queue. */
+		if (osMessageQueueGet(sensorQueue, &receivedValue, NULL, osWaitForever) == osOK)
+		{
+			/* Sensor reading received successfully */
+			/* Increment the counter after successfully receiving a queue message. */
+		    receivedCount++;
+		}
+	}
+
+  /* USER CODE END StartDataProcessingTask */
 }
 
 /**
