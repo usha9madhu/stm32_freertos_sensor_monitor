@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
+#include <stdio.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -41,6 +42,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+UART_HandleTypeDef huart2;
+
 /* Definitions for LEDTask */
 osThreadId_t LEDTaskHandle;
 const osThreadAttr_t LEDTask_attributes = {
@@ -71,6 +74,7 @@ volatile uint32_t receivedCount = 0;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_USART2_UART_Init(void);
 void StartLEDTask(void *argument);
 void StartSensorTask(void *argument);
 void StartDataProcessingTask(void *argument);
@@ -113,15 +117,29 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+
+  /* Initialize USART2 for serial communication with the PC. */
+  MX_USART2_UART_Init();
+
   /* USER CODE BEGIN 2 */
 
-
+  /* Create a message queue for 8 sensor readings. */
   sensorQueue = osMessageQueueNew(8, sizeof(uint32_t), NULL);
 
+  /* Check whether the queue was created successfully. */
   if (sensorQueue == NULL)
   {
       Error_Handler();
   }
+
+  /* Prepare a test message to verify UART communication. */
+  const char uartMessage[] = "UART Stage 3 Started\r\n";
+
+  /* Transmit the startup message through USART2. */
+  HAL_UART_Transmit(&huart2,
+                    (uint8_t *)uartMessage,  /* Message bytes */
+                    sizeof(uartMessage) - 1, /* Exclude terminating null byte */
+                    HAL_MAX_DELAY);          /* Wait for transmission to complete */
 
 
   /* USER CODE END 2 */
@@ -221,6 +239,42 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief USART2 Initialization Function
+  * @param None
+  * @retval None
+  */
+
+/* Configure USART2 for 115200 baud, 8-N-1 serial communication. */
+
+static void MX_USART2_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART2_Init 0 */
+
+  /* USER CODE END USART2_Init 0 */
+
+  /* USER CODE BEGIN USART2_Init 1 */
+
+  /* USER CODE END USART2_Init 1 */
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART2_Init 2 */
+
+  /* USER CODE END USART2_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -315,6 +369,7 @@ void StartSensorTask(void *argument)
   /* USER CODE END StartSensorTask */
 }
 
+#if 0
 /* USER CODE BEGIN Header_StartDataProcessingTask */
 /**
 * @brief Function implementing the DataProcessingT thread.
@@ -347,6 +402,58 @@ void StartDataProcessingTask(void *argument)
 
   /* USER CODE END StartDataProcessingTask */
 }
+#endif
+
+/* USER CODE BEGIN Header_StartDataProcessingTask */
+/**
+* @brief Function implementing the DataProcessingT thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartDataProcessingTask */
+
+void StartDataProcessingTask(void *argument)
+{
+    /* USER CODE BEGIN StartDataProcessingTask */
+
+	/* Variable to store the sensor reading received from the message queue. */
+    uint32_t receivedValue = 0;
+
+    /* Buffer to format sensor readings for UART transmission. */
+    char uartBuffer[50];
+
+    /* Continuously receive sensor readings and transmit them over UART. */
+    for (;;)
+    {
+        /* Wait until a sensor reading is available in the queue. */
+        if (osMessageQueueGet(sensorQueue,
+                              &receivedValue,
+                              NULL,
+                              osWaitForever) == osOK)
+        {
+        	/* Increment the counter after successfully receiving a reading. */
+            receivedCount++;
+
+            /* Format the received sensor reading as a string for UART output. */
+            int length = snprintf(uartBuffer,
+                                  sizeof(uartBuffer),
+                                  "Sensor Reading: %lu\r\n",
+                                  (unsigned long)receivedValue);
+
+            /* Transmit the formatted sensor reading to the serial terminal. */
+            if (length > 0 && length < sizeof(uartBuffer))
+            {
+                HAL_UART_Transmit(&huart2,
+                                  (uint8_t *)uartBuffer,
+                                  (uint16_t)length,
+                                  HAL_MAX_DELAY);
+            }
+        }
+    }
+
+    /* USER CODE END StartDataProcessingTask */
+}
+
 
 /**
   * @brief  Period elapsed callback in non blocking mode
